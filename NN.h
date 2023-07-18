@@ -152,6 +152,10 @@ namespace NN {
 				f = [](double x) -> double {return std::max(x, 0.2*x);};
 				df = [](double x) -> double {return x<0?0.2:1;};
 			}
+			if(name == "elu") {
+				f = [](double x) -> double {return x>0?x:exp(x)-1;};
+				df = [](double x) -> double {return x>0?1:exp(x);};
+			}
 		}
 		inline double rand(int size, int prev_size) const {
 			if(name == "linear") return 0;
@@ -159,6 +163,7 @@ namespace NN {
 				return std::normal_distribution<double>(0, std::sqrt(2.0/(size+prev_size)))(rng);
 			}
 			if(name == "relu") return std::normal_distribution<double>(0, std::sqrt(2.0/prev_size))(rng);
+			if(name == "elu") return std::normal_distribution<double>(0, std::sqrt(2.0/prev_size))(rng);
 			return 0;
 		}
 		inline friend std::ostream& operator<<(std::ostream& os, const act_function& act) {
