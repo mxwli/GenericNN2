@@ -9,6 +9,7 @@
 #include <random>
 #include <istream>
 #include <ostream>
+#include <iostream>
 
 namespace NN {
 	inline std::mt19937_64 rng;
