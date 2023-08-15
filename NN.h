@@ -9,6 +9,7 @@
 #include <random>
 #include <istream>
 #include <ostream>
+#include <iostream>
 
 namespace NN {
 	inline std::mt19937_64 rng;
@@ -322,17 +323,30 @@ namespace NN {
 		return sum/((stdvec)A).size();
 	}
 
-	inline void automatic_fit(network& net, std::vector<vector> X, std::vector<vector> y, int epochs, double learning_rate) {
+	inline void automatic_fit(network& net, std::vector<vector> X, std::vector<vector> y, int iterations, int batch_size, double learning_rate) {
+		// batch size -1 means to train with *all* of the data each iteration
 		gradient var_m = net.get_zero_gradient();
 		gradient var_s = net.get_zero_gradient();
 		double var_beta_1 = 0.9, var_beta_2 = 0.999;
-		for(int _A = 1; _A <= epochs; _A++) {
+		for(int _A = 1; _A <= iterations; _A++) {
 			gradient total_gradient = net.get_zero_gradient();
 			double avg_mse = 0;
-			for(int i = 0; i < X.size(); i++) {
-				network_output cur_output = net(X[i]);
-				total_gradient = total_gradient + net.gradient(X[i], cur_output, y[i]);
-				avg_mse += MSE(cur_output.back(), y[i]);
+			if(batch_size == -1) {
+				for(int i = 0; i < X.size(); i++) {
+					network_output cur_output = net(X[i]);
+					total_gradient = total_gradient + net.gradient(X[i], cur_output, y[i]);
+					avg_mse += MSE(cur_output.back(), y[i])/X.size();
+				}
+			}
+			else {
+				std::vector<int> indecies(X.size());
+				iota(indecies.begin(), indecies.end(), 0);
+				shuffle(indecies.begin(), indecies.end(), rng);
+				for(int i = 0; i < batch_size && i < X.size(); i++) {
+					network_output cur_output = net(X[indecies[i]]);
+					total_gradient = total_gradient + net.gradient(X[indecies[i]], cur_output, y[indecies[i]]);
+					avg_mse += MSE(cur_output.back(), y[indecies[i]])/batch_size;
+				}
 			}
 			total_gradient = total_gradient*(1.0/X.size());
 			var_m = (var_m * var_beta_1) - (total_gradient * (1-var_beta_1));
@@ -340,7 +354,7 @@ namespace NN {
 			gradient var_m_cap = var_m*(1.0/(1-std::pow(var_beta_1, 4*_A)));
 			gradient var_s_cap = var_s*(1.0/(1-std::pow(var_beta_2, 4*_A)));
 			net = net + var_m_cap / var_s_cap.map([](double x) -> double {return std::sqrt(x+1e-7);}) * learning_rate; //ADAM optimizer
-			std::cout << "average MSE for epoch " << _A << " \t:\t " << avg_mse/X.size() << "\n";
+			std::cout << "average MSE for iteration " << _A << " \t:\t " << avg_mse << "\n";
 		}
 	}
 }
