@@ -46,6 +46,9 @@
 		"istream": "cpp",
 		"cassert": "cpp",
 		"sstream": "cpp",
-		"fstream": "cpp"
+		"fstream": "cpp",
+		"chrono": "cpp",
+		"ctime": "cpp",
+		"ratio": "cpp"
 	}
 }

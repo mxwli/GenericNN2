@@ -4,6 +4,7 @@
 #include <cmath>
 #include <fstream>
 #include <cassert>
+#include <chrono>
 
 #include "NN.h"
 
@@ -104,10 +105,16 @@ int main() {
 	assert(X_train.size() == y_train.size());
 	cout << "\t\tmaking and training network" << endl;
 	NN::network net({
+		NN::layer("elu", 64, 14*14),
+		NN::layer("elu", 32, 64),
+		NN::layer("tanh", 10, 32)
+	});
+	NN::network net2({
 		NN::layer("elu", 128, 14*14),
 		NN::layer("tanh", 10, 128)
 	});
-	NN::automatic_fit(net, X_train, y_train, "mse", 20, 64, 0.001, hitmissratio, "saves/C1.txt");
+	
+	NN::automatic_fit(net, X_train, y_train, "mse", 20, 64, 0.001, hitmissratio, "saves/D1.txt");
 }
 
 #endif
