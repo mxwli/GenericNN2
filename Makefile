@@ -1,11 +1,10 @@
 EXEC=bin/program
 CXX=g++
-CXXFLAGS=${LIB} -Wall
+CXXFLAGS=${LIB} -Wall -O3 -MMD
 LIB=-lraylib #-lbox2d
 SRC=$(wildcard *.cpp)
 OBJECTS=$(SRC:.cpp=.o)
 DEPENDS=$(OBJECTS:.o=.d)
-CDEF=-O3 -MMD #-g
 
 ${EXEC}: ${OBJECTS}
 	${CXX} ${CXXFLAGS} ${OBJECTS} ${LIB} -o ${EXEC} ${CDEF}

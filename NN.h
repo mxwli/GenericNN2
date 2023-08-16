@@ -384,8 +384,7 @@ namespace NN {
 			loss_function = [](const vector& A, const vector& B) -> double {
 			    double sum = 0;
 			    for (std::size_t i = 0; i < ((stdvec)A).size(); i++) {
-					sum -= B[i] * log(A[i]);
-					assert(A[i]>0);
+					sum -= B[i] * std::max(-100.0, log(A[i]+1e-3));
 				}
 			    return sum / ((stdvec)A).size();
 			};
