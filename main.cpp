@@ -30,7 +30,7 @@ void read_mnist(string filename, vector<NN::vector>& X, vector<NN::vector>& y) {
 			if(i == ',') {
 				if(first) {
 					vector<double> tmp(10);
-					tmp[val] = 2;
+					tmp[val] = 1;
 					y.push_back(tmp);
 				}
 				else new_x.push_back(val/255.0);
@@ -58,10 +58,10 @@ void read_mnist(string filename, vector<NN::vector>& X, vector<NN::vector>& y) {
 	filereader.close();
 }
 
-void hitmissratio(NN::network net, int sample) {
+void hitmissratio(const NN::network& net) {
 	cout << "\t\tevaluating model" << endl;
 	int hit = 0, miss = 0;
-	for(int i = 0; i < sample; i++) {
+	for(int i = 0; i < X_test.size(); i++) {
 		vector<double> prediction = net(X_test[i]).back();
 		int maxidxpredict = 0, maxidxlabel = 0;
 		for(int i2 = 1; i2 < 10; i2++) {
@@ -83,7 +83,7 @@ void test(string filename) {
 	cout << "\t\treading test set" << endl;
 	read_mnist("data/mnist_test.csv", X_test, y_test);
 	assert(X_test.size() == y_test.size());
-	hitmissratio(net, X_test.size());
+	hitmissratio(net);
 }
 
 int main() {
@@ -104,18 +104,10 @@ int main() {
 	assert(X_train.size() == y_train.size());
 	cout << "\t\tmaking and training network" << endl;
 	NN::network net({
-		NN::layer("elu", 98, 14*14),
-		NN::layer("elu", 10, 98)
+		NN::layer("elu", 128, 14*14),
+		NN::layer("tanh", 10, 128)
 	});
-	for(int _A = 0; _A < 200; _A++) {
-		cout << "\t\t_A: " << _A << endl;
-		NN::automatic_fit(net, X_train, y_train, 20, 35, 0.005);
-		// evaluate our model
-		hitmissratio(net, 100);
-		ofstream savefile("saves/B1.txt");
-		savefile << net;
-		savefile.close();
-	}
+	NN::automatic_fit(net, X_train, y_train, "cross entropy", 20, 64, 0.001, hitmissratio, "saves/C1.txt");
 }
 
 #endif
@@ -137,8 +129,8 @@ int main() {
 		NN::layer("elu", 2, 5),
 		NN::layer("linear", 1, 2),
 	});
-	NN::automatic_fit(net, X, y, 400, -1, 0.02);
-	NN::automatic_fit(net, X, y, 400, -1, 0.005);
+	NN::automatic_fit_old(net, X, y, 400, X.size(), 0.02);
+	NN::automatic_fit_old(net, X, y, 400, X.size(), 0.005);
 	for(int i = 0; i < X.size(); i++) {
 		cout << X[i][0] << " " << X[i][1] << " " << y[i][0] << " : " << net(X[i]).back()[0] << "\n";
 	}

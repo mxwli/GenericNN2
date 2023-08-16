@@ -10,6 +10,7 @@
 #include <istream>
 #include <ostream>
 #include <iostream>
+#include <string>
 
 namespace NN {
 	inline std::mt19937_64 rng;
@@ -146,8 +147,8 @@ namespace NN {
 				df = [](double x) -> double {return 1;};
 			}
 			else if (name == "tanh") {
-				f = [](double x) -> double {return std::tanh(x);};
-				df = [](double x) -> double {return std::pow(1.0/std::cosh(x),2);};
+				f = [](double x) -> double {return 0.5*std::tanh(x)+0.5;};
+				df = [](double x) -> double {return std::pow(1.0/std::cosh(x),2)/2;};
 			}
 			else if (name == "relu") {
 				f = [](double x) -> double {return std::max(x, 0.2*x);};
@@ -247,7 +248,7 @@ namespace NN {
 			}
 			return is;
 		}
-		inline network_output operator()(vector v) {
+		inline network_output operator()(vector v) const {
 			std::vector<vector> ret;
 			for(const layer& l: layers) {
 				v = l(v);
@@ -291,11 +292,9 @@ namespace NN {
 				ret.push_back(layers[i]*scale);
 			return ret;
 		}
-		inline network gradient(vector input, network_output activations, vector target) const {
+		inline network gradient(vector input, network_output activations, vector target, std::function<double(int)> dloss) const {
 			network ret({});
-			vector diff = vector((stdvec(target)).size(), [activations, target](int idx) -> double {
-				return (activations.back()[idx]-target[idx])*2;
-			});
+			vector diff = vector((stdvec(target)).size(), dloss);
 			for(int i = ((int)layers.size())-1; i >= 0; i--) {
 				diff = diff * (activations[i].map(layers[i].activation.df));
 				ret.layers.push_back(layer(
@@ -323,7 +322,7 @@ namespace NN {
 		return sum/((stdvec)A).size();
 	}
 
-	inline void automatic_fit(network& net, std::vector<vector> X, std::vector<vector> y, int iterations, int batch_size, double learning_rate) {
+	inline void automatic_fit_old(network& net, std::vector<vector> X, std::vector<vector> y, int iterations, int batch_size, double learning_rate) {
 		// batch size -1 means to train with *all* of the data each iteration
 		gradient var_m = net.get_zero_gradient();
 		gradient var_s = net.get_zero_gradient();
@@ -331,22 +330,16 @@ namespace NN {
 		for(int _A = 1; _A <= iterations; _A++) {
 			gradient total_gradient = net.get_zero_gradient();
 			double avg_mse = 0;
-			if(batch_size == -1) {
-				for(int i = 0; i < X.size(); i++) {
-					network_output cur_output = net(X[i]);
-					total_gradient = total_gradient + net.gradient(X[i], cur_output, y[i]);
-					avg_mse += MSE(cur_output.back(), y[i])/X.size();
-				}
-			}
-			else {
-				std::vector<int> indecies(X.size());
-				iota(indecies.begin(), indecies.end(), 0);
-				shuffle(indecies.begin(), indecies.end(), rng);
-				for(int i = 0; i < batch_size && i < X.size(); i++) {
-					network_output cur_output = net(X[indecies[i]]);
-					total_gradient = total_gradient + net.gradient(X[indecies[i]], cur_output, y[indecies[i]]);
-					avg_mse += MSE(cur_output.back(), y[indecies[i]])/batch_size;
-				}
+			std::vector<int> indecies(X.size());
+			iota(indecies.begin(), indecies.end(), 0);
+			shuffle(indecies.begin(), indecies.end(), rng);
+			for(int i = 0; i < batch_size && i < X.size(); i++) {
+				network_output cur_output = net(X[indecies[i]]);
+				vector target = y[indecies[i]];
+				total_gradient = total_gradient + net.gradient(X[indecies[i]], cur_output, y[indecies[i]], [cur_output, target](int idx) -> double {
+					return (cur_output.back()[idx]-target[idx])*2;
+				});
+				avg_mse += MSE(cur_output.back(), y[indecies[i]])/batch_size;
 			}
 			total_gradient = total_gradient*(1.0/X.size());
 			var_m = (var_m * var_beta_1) - (total_gradient * (1-var_beta_1));
@@ -355,6 +348,103 @@ namespace NN {
 			gradient var_s_cap = var_s*(1.0/(1-std::pow(var_beta_2, 4*_A)));
 			net = net + var_m_cap / var_s_cap.map([](double x) -> double {return std::sqrt(x+1e-7);}) * learning_rate; //ADAM optimizer
 			std::cout << "average MSE for iteration " << _A << " \t:\t " << avg_mse << "\n";
+		}
+	}
+
+	typedef std::function<double(vector output, vector target)> lossfunctype;
+	typedef std::function<std::function<double(int)>(const vector& cur_output, const vector& target)> dlossfunctype;
+
+	inline void get_loss_functions(std::string loss, lossfunctype& loss_function, dlossfunctype& dloss_function) {
+		if(loss == "mse") {
+			loss_function = [](const vector& A, const vector& B) -> double {
+				double sum = 0;
+				for(std::size_t i = 0; i < ((stdvec)A).size(); i++) sum += (A[i]-B[i])*(A[i]-B[i]);
+				return sum/((stdvec)A).size();
+			};
+			dloss_function = [](const vector& cur_output, const vector& target) -> std::function<double(int)> {
+				return [cur_output, target](int idx) -> double {
+			    	return (cur_output[idx] - target[idx]) * 2 / ((stdvec)target).size();
+				};
+			};
+		}
+		if (loss == "mae") {
+			loss_function = [](const vector& A, const vector& B) -> double {
+			    double sum = 0;
+			    for (std::size_t i = 0; i < ((stdvec)A).size(); i++)
+				sum += abs(A[i] - B[i]);
+			    return sum / ((stdvec)A).size();
+			};
+			dloss_function = [](const vector& cur_output, const vector& target) -> std::function<double(int)> {
+			    return [cur_output, target](int idx) -> double {
+					return ((cur_output[idx] - target[idx]) > 0 ? 1 : -1) / ((stdvec)target).size();
+			    };
+			};
+		}
+		if (loss == "cross entropy") {
+			loss_function = [](const vector& A, const vector& B) -> double {
+			    double sum = 0;
+			    for (std::size_t i = 0; i < ((stdvec)A).size(); i++) {
+					sum -= B[i] * log(A[i]);
+					assert(A[i]>0);
+				}
+			    return sum / ((stdvec)A).size();
+			};
+			dloss_function = [](const vector& cur_output, const vector& target) -> std::function<double(int)> {
+				return [cur_output, target](int idx) -> double {
+			    	return std::clamp(target[idx] / cur_output[idx], -4.0, 4.0);
+				};
+			};
+		}
+	}
+	/*
+	net: network to be trained
+	X_train: training data
+	y_train: training labels
+	loss: string representing loss choice: ["mse", "mae", "cross entropy"]
+	metric: called using network once per epoch
+	savefile: if not empty, network content is saved in filename
+	*/
+	inline void automatic_fit(network& net, std::vector<vector> X_train, std::vector<vector> y_train, 
+		std::string loss, int epochs, int batch_size, double learning_rate, std::function<void(const network&)> metric, std::string savefile) {
+		gradient var_m = net.get_zero_gradient();
+		gradient var_s = net.get_zero_gradient();
+		double var_beta_1 = 0.9, var_beta_2 = 0.999;
+		lossfunctype loss_function;
+		dlossfunctype dloss_function;
+		get_loss_functions(loss, loss_function, dloss_function);
+		for(int epoch_number = 1; epoch_number <= epochs; epoch_number++) {
+			std::cout << "-----------------------------" << std::endl;
+			gradient total_gradient = net.get_zero_gradient();
+			double average_loss = 0;
+			std::vector<int> indecies(X_train.size());
+			iota(indecies.begin(), indecies.end(), 0);
+			shuffle(indecies.begin(), indecies.end(), rng);
+			for(int batch_number = 0; batch_number*(batch_size+1) <= X_train.size(); batch_number++) {
+				for(int i = 0; i < batch_size; i++) {
+					int cidx = indecies[batch_number*batch_size+i];
+					vector input = X_train[cidx];
+					network_output cur_output = net(X_train[cidx]);
+					vector target = y_train[cidx];
+					average_loss += loss_function(cur_output.back(), target);
+					total_gradient = total_gradient + net.gradient(input, cur_output, target, dloss_function(cur_output.back(), target));
+				}
+				average_loss /= batch_size;
+				total_gradient = total_gradient * (1.0/batch_size);
+				var_m = (var_m * var_beta_1) - (total_gradient * (1-var_beta_1));
+				var_s = (var_s * var_beta_2) + ((total_gradient*total_gradient)*(1-var_beta_2));
+				gradient var_m_cap = var_m*(1.0/(1-std::pow(var_beta_1, 4*epoch_number)));
+				gradient var_s_cap = var_s*(1.0/(1-std::pow(var_beta_2, 4*epoch_number)));
+				net = net + var_m_cap / var_s_cap.map([](double x) -> double {return std::sqrt(x+1e-7);}) * learning_rate; //ADAM optimizer
+				std::cout << "Epoch " << epoch_number << "\t Batch " << batch_number << "\t avg loss " << average_loss/(batch_number+1) << std::endl;
+			}
+			average_loss /= X_train.size()/batch_size;
+			std::cout << "\tEpoch " << epoch_number << " " << loss << ": " << average_loss << std::endl;
+			metric(net);
+			if(savefile.size() > 0) {
+				std::ofstream save(savefile);
+				save << net;
+				save.close();
+			}
 		}
 	}
 }
