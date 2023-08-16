@@ -11,6 +11,7 @@
 #include <ostream>
 #include <iostream>
 #include <string>
+#include <chrono>
 
 namespace NN {
 	inline std::mt19937_64 rng;
@@ -68,11 +69,11 @@ namespace NN {
 
 	class matrix {
 		stdmat mat;
-		std::size_t N, M;
 	public:
+		std::size_t N, M;
 		inline matrix(): mat() {}
 		inline matrix(stdmat m): mat(m), N(m.size()), M(m[0].size()) {}
-		inline matrix(stdvec v): mat(v.size()), N(v.size()), M(1) {
+		inline matrix(stdvec v, bool vert=true): mat(v.size()), N(v.size()), M(1) {
 			for(std::size_t i = 0; i < v.size(); i++) mat[i] = {v[i]};
 		}
 		inline operator stdmat () const {
@@ -106,6 +107,7 @@ namespace NN {
 				for(std::size_t i2 = 0; i2 < M; i2++)
 					mat[i][i2] = constructor(i, i2);
 		}
+		inline matrix(std::size_t N, std::size_t M): mat(N, stdvec(M)), N(N), M(M) {}
 		inline matrix operator+(const matrix& m) const {
 			return matrix(N, M, [this, m](int x, int y) -> double {return mat[x][y]+m.mat[x][y];});
 		}
@@ -119,11 +121,19 @@ namespace NN {
 			return matrix(N, M, [this, m](int x, int y) -> double {return mat[x][y]/m.mat[x][y];});
 		}
 		inline matrix operator&(const matrix& m) const { // matrix multiplication is reserved with the & operator
+			stdmat ret(N, stdvec(m.M, 0));
+			for(std::size_t x = 0; x < N; x++)
+				for(std::size_t i = 0; i < M; i++)
+					for(std::size_t y = 0; y < m.M; y++)
+						ret[x][y] += mat[x][i]*m.mat[i][y];
+			return matrix(ret);
+			/*
 			return matrix(N, m.M, [this, m](int x, int y) -> double {
 				double sum = 0;
 				for(size_t i = 0; i < M; i++) sum += mat[x][i]*m.mat[i][y];
 				return sum;
 			});
+			*/
 		}
 		inline matrix map(std::function<double(double)> f) const {
 			return matrix(N, M, [this, f](int x, int y) -> double {return f(mat[x][y]);});
@@ -305,9 +315,14 @@ namespace NN {
 							return i==0?(diff[x]*input[y]):(diff[x]*activations[i-1][y]);
 						})
 				));
-				diff = vector(matrix({stdvec(diff)})&layers[i].weight);
+					//auto start = std::chrono::high_resolution_clock::now();
+					//std::cout << "\t" << ((stdvec)diff).size() << " " << layers[i].weight.N << " " << layers[i].weight.M << "\n";
+				diff = vector(matrix(stdmat({stdvec(diff)}))&layers[i].weight); // here, & denotes the matrix multiplication operation
+					//auto end = std::chrono::high_resolution_clock::now();
+					//std::cout << std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << "\n";
 			}
 			std::reverse(ret.layers.begin(), ret.layers.end());
+
 			return ret;
 		}
 		inline network get_zero_gradient() const {
