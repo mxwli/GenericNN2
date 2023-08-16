@@ -1,0 +1,5 @@
+*.d
+*.zip
+*.csv
+bin/program
+*.o

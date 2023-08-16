@@ -390,7 +390,7 @@ namespace NN {
 			};
 			dloss_function = [](const vector& cur_output, const vector& target) -> std::function<double(int)> {
 				return [cur_output, target](int idx) -> double {
-			    	return std::clamp(target[idx] / cur_output[idx], -4.0, 4.0);
+			    	return std::clamp(-target[idx] / cur_output[idx], -4.0, 4.0);
 				};
 			};
 		}
@@ -419,15 +419,17 @@ namespace NN {
 			iota(indecies.begin(), indecies.end(), 0);
 			shuffle(indecies.begin(), indecies.end(), rng);
 			for(int batch_number = 0; batch_number*(batch_size+1) <= X_train.size(); batch_number++) {
+				double newal = 0;
 				for(int i = 0; i < batch_size; i++) {
 					int cidx = indecies[batch_number*batch_size+i];
 					vector input = X_train[cidx];
 					network_output cur_output = net(X_train[cidx]);
 					vector target = y_train[cidx];
-					average_loss += loss_function(cur_output.back(), target);
+					newal += loss_function(cur_output.back(), target);
 					total_gradient = total_gradient + net.gradient(input, cur_output, target, dloss_function(cur_output.back(), target));
 				}
-				average_loss /= batch_size;
+				newal /= batch_size;
+				average_loss += newal;
 				total_gradient = total_gradient * (1.0/batch_size);
 				var_m = (var_m * var_beta_1) - (total_gradient * (1-var_beta_1));
 				var_s = (var_s * var_beta_2) + ((total_gradient*total_gradient)*(1-var_beta_2));
@@ -435,15 +437,17 @@ namespace NN {
 				gradient var_s_cap = var_s*(1.0/(1-std::pow(var_beta_2, 4*epoch_number)));
 				net = net + var_m_cap / var_s_cap.map([](double x) -> double {return std::sqrt(x+1e-7);}) * learning_rate; //ADAM optimizer
 				std::cout << "Epoch " << epoch_number << "\t Batch " << batch_number << "\t avg loss " << average_loss/(batch_number+1) << std::endl;
+				if(batch_number%10==0) {
+					if(savefile.size() > 0) {
+						std::ofstream save(savefile);
+						save << net;
+						save.close();
+					}
+				}
 			}
 			average_loss /= X_train.size()/batch_size;
 			std::cout << "\tEpoch " << epoch_number << " " << loss << ": " << average_loss << std::endl;
 			metric(net);
-			if(savefile.size() > 0) {
-				std::ofstream save(savefile);
-				save << net;
-				save.close();
-			}
 		}
 	}
 }

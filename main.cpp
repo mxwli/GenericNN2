@@ -107,7 +107,7 @@ int main() {
 		NN::layer("elu", 128, 14*14),
 		NN::layer("tanh", 10, 128)
 	});
-	NN::automatic_fit(net, X_train, y_train, "cross entropy", 20, 64, 0.001, hitmissratio, "saves/C1.txt");
+	NN::automatic_fit(net, X_train, y_train, "cross entropy", 20, 64, 0.001, hitmissratio, "saves/C2.txt");
 }
 
 #endif
