@@ -1,7 +1,7 @@
 EXEC=bin/program
 CXX=g++
 CXXFLAGS=${LIB} -Wall -O3 -MMD
-LIB=-lraylib #-lbox2d
+LIB=#-lraylib #-lbox2d
 SRC=$(wildcard *.cpp)
 OBJECTS=$(SRC:.cpp=.o)
 DEPENDS=$(OBJECTS:.o=.d)
