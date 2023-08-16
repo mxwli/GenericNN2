@@ -370,8 +370,9 @@ namespace NN {
 		if (loss == "mae") {
 			loss_function = [](const vector& A, const vector& B) -> double {
 			    double sum = 0;
-			    for (std::size_t i = 0; i < ((stdvec)A).size(); i++)
-				sum += abs(A[i] - B[i]);
+			    for (std::size_t i = 0; i < ((stdvec)A).size(); i++) {
+					sum += std::abs(A[i] - B[i]);
+				}
 			    return sum / ((stdvec)A).size();
 			};
 			dloss_function = [](const vector& cur_output, const vector& target) -> std::function<double(int)> {
@@ -384,7 +385,8 @@ namespace NN {
 			loss_function = [](const vector& A, const vector& B) -> double {
 			    double sum = 0;
 			    for (std::size_t i = 0; i < ((stdvec)A).size(); i++) {
-					sum -= B[i] * std::max(-100.0, log(A[i]+1e-3));
+					if(B[i] != 0)
+						sum -= B[i] * std::max(-100.0, std::log(A[i]+1e-3));
 				}
 			    return sum / ((stdvec)A).size();
 			};
@@ -436,7 +438,7 @@ namespace NN {
 				gradient var_m_cap = var_m*(1.0/(1-std::pow(var_beta_1, 4*epoch_number)));
 				gradient var_s_cap = var_s*(1.0/(1-std::pow(var_beta_2, 4*epoch_number)));
 				net = net + var_m_cap / var_s_cap.map([](double x) -> double {return std::sqrt(x+1e-7);}) * learning_rate; //ADAM optimizer
-				std::cout << "Epoch " << epoch_number << "\t Batch " << batch_number << "\t avg loss " << average_loss/(batch_number+1) << std::endl;
+				std::cout << "Epoch " << epoch_number << "\t Batch " << batch_number << "\t avg loss " << newal << std::endl;
 				if(batch_number%10==0) {
 					if(savefile.size() > 0) {
 						std::ofstream save(savefile);
