@@ -386,13 +386,13 @@ namespace NN {
 			    double sum = 0;
 			    for (std::size_t i = 0; i < ((stdvec)A).size(); i++) {
 					if(B[i] != 0)
-						sum -= B[i] * std::max(-100.0, std::log(A[i]+1e-3));
+						sum -= B[i] * std::max(-100.0, std::log(std::clamp(A[i], 1e-3, 1-1e-3)));
 				}
 			    return sum / ((stdvec)A).size();
 			};
 			dloss_function = [](const vector& cur_output, const vector& target) -> std::function<double(int)> {
 				return [cur_output, target](int idx) -> double {
-			    	return std::clamp(-target[idx] / cur_output[idx], -4.0, 4.0);
+			    	return -target[idx] / std::clamp(cur_output[idx], 1e-3, 1-1e-3)/((stdvec)target).size();
 				};
 			};
 		}
@@ -420,7 +420,7 @@ namespace NN {
 			std::vector<int> indecies(X_train.size());
 			iota(indecies.begin(), indecies.end(), 0);
 			shuffle(indecies.begin(), indecies.end(), rng);
-			for(int batch_number = 0; batch_number*(batch_size+1) <= X_train.size(); batch_number++) {
+			for(int batch_number = 0; batch_size*(batch_number+1) <= X_train.size(); batch_number++) {
 				double newal = 0;
 				for(int i = 0; i < batch_size; i++) {
 					int cidx = indecies[batch_number*batch_size+i];

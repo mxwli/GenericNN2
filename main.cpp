@@ -16,10 +16,10 @@ using namespace std;
 
 vector<NN::vector> X_train, X_test, y_train, y_test;
 
-void read_mnist(string filename, vector<NN::vector>& X, vector<NN::vector>& y) {
+void read_mnist(string filename, vector<NN::vector>& X, vector<NN::vector>& y, int cutoff) {
 	ifstream filereader(filename);
 	string dummy; filereader >> dummy; // we dont need the labels
-	while(!filereader.eof()) {
+	while(!filereader.eof() && (cutoff == -1 || X.size() < cutoff)) {
 		if(X.size()%1000==0) cout << "reading line " << X.size() << "\n";
 		string nextline;
 		filereader >> nextline; // since there are no spaces in the file
@@ -81,7 +81,7 @@ void test(string filename) {
 	networkdata >> net;
 	networkdata.close();
 	cout << "\t\treading test set" << endl;
-	read_mnist("data/mnist_test.csv", X_test, y_test);
+	read_mnist("data/mnist_test.csv", X_test, y_test, -1);
 	assert(X_test.size() == y_test.size());
 	hitmissratio(net);
 }
@@ -97,17 +97,17 @@ int main() {
 		return 0;
 	}
 	cout << "\t\treading test set\n";
-	read_mnist("data/mnist_test.csv", X_test, y_test);
+	read_mnist("data/mnist_test.csv", X_test, y_test, -1);
 	assert(X_test.size() == y_test.size());
 	cout << "\t\treading train set" << endl;
-	read_mnist("data/mnist_train.csv", X_train, y_train);
+	read_mnist("data/mnist_train.csv", X_train, y_train, -1);
 	assert(X_train.size() == y_train.size());
 	cout << "\t\tmaking and training network" << endl;
 	NN::network net({
 		NN::layer("elu", 128, 14*14),
 		NN::layer("tanh", 10, 128)
 	});
-	NN::automatic_fit(net, X_train, y_train, "cross entropy", 20, 64, 0.001, hitmissratio, "saves/C2.txt");
+	NN::automatic_fit(net, X_train, y_train, "mse", 20, 64, 0.001, hitmissratio, "saves/C1.txt");
 }
 
 #endif
