@@ -43,17 +43,18 @@ void read_mnist(string filename, vector<NN::vector>& X, vector<NN::vector>& y, i
 			}
 		}
 		new_x.push_back(val);
-		vector<double> processed;
+		X.push_back(NN::vector(new_x));
+		//vector<double> processed;
 		// here we use max pooling
-		for(int x = 0; x+1 < 28; x+=2) {
+		/*for(int x = 0; x+1 < 28; x+=2) {
 			for(int y = 0; y+1 < 28; y+=2) {
 				double mx = 0;
 				for(int x1 = x; x1 <= x+1; x1++) for(int y1 = y; y1 <= y+1; y1++)
 					mx = max(mx, new_x[x+28*y]);
 				processed.push_back(mx);
 			}
-		}
-		X.push_back(NN::vector(processed));
+		}*/
+		//X.push_back(NN::vector(processed));
 	}
 	cout << "closing file" << endl;
 	filereader.close();
@@ -67,13 +68,15 @@ void hitmissratio(const NN::network& net) {
 		int maxidxpredict = 0, maxidxlabel = 0;
 		for(int i2 = 1; i2 < 10; i2++) {
 			if(prediction[i2]>prediction[maxidxpredict]) maxidxpredict = i2;
-			if(prediction[i2]>y_test[i][maxidxlabel]) maxidxlabel = i2;
+			if(y_test[i][i2]>y_test[i][maxidxlabel]) maxidxlabel = i2;
 		}
 		if(maxidxpredict == maxidxlabel) hit++;
 		else miss++;
 	}
 	cout << "\t\thit to miss: " << hit << " : " << miss << endl;
 }
+
+#include <raylib.h>
 
 void test(string filename) {
 	NN::network net({});
@@ -85,6 +88,31 @@ void test(string filename) {
 	read_mnist("data/mnist_test.csv", X_test, y_test, -1);
 	assert(X_test.size() == y_test.size());
 	hitmissratio(net);
+
+	cout << "Press Enter to begin graphical test" << endl;
+	string tmp; cin >> tmp;
+	InitWindow(28*10+200, 28*10, "test");
+	SetTargetFPS(30);
+	vector<double> input(28*28);
+
+	while(!WindowShouldClose()) {
+		BeginDrawing();
+		ClearBackground(RAYWHITE);
+		if(IsMouseButtonPressed(0)){
+			input = X_test[uniform_int_distribution<>(0, X_test.size()-1)(NN::rng)];
+		}
+		for(int x = 0; x < 28; x++) for(int y = 0; y < 28; y++) {
+			unsigned char scale = (unsigned char)(255*(1-input[x+28*y]));
+			DrawRectangle(10*x, 10*y, 10, 10, {scale, scale, scale, 255});
+		}
+		auto output = net(NN::vector(input)).back();
+		for(int i = 0; i < 10; i++) {
+			DrawText(to_string(i).c_str(), 10*28+5, i*20, 18, BLACK);
+			DrawRectangle(10*28+20, i*20, (int)(output[i]*165), 18, BLACK);
+		}
+		EndDrawing();
+	}
+	CloseWindow();
 }
 
 int main() {
@@ -98,23 +126,19 @@ int main() {
 		return 0;
 	}
 	cout << "\t\treading test set\n";
-	read_mnist("data/mnist_test.csv", X_test, y_test, -1);
+	read_mnist("data/mnist_test.csv", X_test, y_test, 100);
 	assert(X_test.size() == y_test.size());
 	cout << "\t\treading train set" << endl;
-	read_mnist("data/mnist_train.csv", X_train, y_train, -1);
+	read_mnist("data/mnist_train.csv", X_train, y_train, 1000);
 	assert(X_train.size() == y_train.size());
 	cout << "\t\tmaking and training network" << endl;
 	NN::network net({
-		NN::layer("elu", 64, 14*14),
+		NN::layer("elu", 64, 28*28),
 		NN::layer("elu", 32, 64),
 		NN::layer("tanh", 10, 32)
 	});
-	NN::network net2({
-		NN::layer("elu", 128, 14*14),
-		NN::layer("tanh", 10, 128)
-	});
 	
-	NN::automatic_fit(net, X_train, y_train, "mse", 20, 64, 0.001, hitmissratio, "saves/D1.txt");
+	NN::automatic_fit(net, X_train, y_train, "cross entropy", 20, 64, 0.001, hitmissratio, "saves/D3.txt");
 }
 
 #endif

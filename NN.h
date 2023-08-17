@@ -315,11 +315,7 @@ namespace NN {
 							return i==0?(diff[x]*input[y]):(diff[x]*activations[i-1][y]);
 						})
 				));
-					//auto start = std::chrono::high_resolution_clock::now();
-					//std::cout << "\t" << ((stdvec)diff).size() << " " << layers[i].weight.N << " " << layers[i].weight.M << "\n";
 				diff = vector(matrix(stdmat({stdvec(diff)}))&layers[i].weight); // here, & denotes the matrix multiplication operation
-					//auto end = std::chrono::high_resolution_clock::now();
-					//std::cout << std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << "\n";
 			}
 			std::reverse(ret.layers.begin(), ret.layers.end());
 
@@ -396,18 +392,18 @@ namespace NN {
 			    };
 			};
 		}
-		if (loss == "cross entropy") {
+		if (loss == "cross entropy") { // this one is broken
 			loss_function = [](const vector& A, const vector& B) -> double {
 			    double sum = 0;
 			    for (std::size_t i = 0; i < ((stdvec)A).size(); i++) {
 					if(B[i] != 0)
-						sum -= B[i] * std::max(-100.0, std::log(std::clamp(A[i], 1e-3, 1-1e-3)));
+						sum -= B[i] * std::log(std::clamp(A[i], 1e-3, 1-1e-3));
 				}
 			    return sum / ((stdvec)A).size();
 			};
 			dloss_function = [](const vector& cur_output, const vector& target) -> std::function<double(int)> {
 				return [cur_output, target](int idx) -> double {
-			    	return -target[idx] / std::clamp(cur_output[idx], 1e-3, 1-1e-3)/((stdvec)target).size();
+			    	return 1;
 				};
 			};
 		}
@@ -416,7 +412,7 @@ namespace NN {
 	net: network to be trained
 	X_train: training data
 	y_train: training labels
-	loss: string representing loss choice: ["mse", "mae", "cross entropy"]
+	loss: string representing loss choice: ["mse", "mae"]
 	metric: called using network once per epoch
 	savefile: if not empty, network content is saved in filename
 	*/
