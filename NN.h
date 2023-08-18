@@ -73,7 +73,7 @@ namespace NN {
 		std::size_t N, M;
 		inline matrix(): mat() {}
 		inline matrix(stdmat m): mat(m), N(m.size()), M(m[0].size()) {}
-		inline matrix(stdvec v, bool vert=true): mat(v.size()), N(v.size()), M(1) {
+		inline matrix(stdvec v): mat(v.size()), N(v.size()), M(1) {
 			for(std::size_t i = 0; i < v.size(); i++) mat[i] = {v[i]};
 		}
 		inline operator stdmat () const {
@@ -394,16 +394,23 @@ namespace NN {
 		}
 		if (loss == "cross entropy") { // this one is broken
 			loss_function = [](const vector& A, const vector& B) -> double {
+				double tot = 0;
+			    for (std::size_t i = 0; i < ((stdvec)A).size(); i++) tot += std::exp(A[i]);
+
 			    double sum = 0;
 			    for (std::size_t i = 0; i < ((stdvec)A).size(); i++) {
 					if(B[i] != 0)
-						sum -= B[i] * std::log(std::clamp(A[i], 1e-3, 1-1e-3));
+						sum -= B[i] * std::log(std::clamp(std::exp(A[i])/tot, 1e-3, 1-1e-3));
 				}
 			    return sum / ((stdvec)A).size();
 			};
 			dloss_function = [](const vector& cur_output, const vector& target) -> std::function<double(int)> {
 				return [cur_output, target](int idx) -> double {
-			    	return 1;
+					double tot = 0;
+			    	for (std::size_t i = 0; i < ((stdvec)cur_output).size(); i++) tot += std::exp(cur_output[i]);
+					double sum = target[idx]*(1-std::exp(cur_output[idx])/tot);
+			    	for(std::size_t i = 0; i < ((stdvec)cur_output).size(); i++) sum -= target[i]*std::exp(cur_output[idx])/tot*std::exp(cur_output[i])/tot;
+					return -sum;
 				};
 			};
 		}

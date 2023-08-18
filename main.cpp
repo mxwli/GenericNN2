@@ -135,7 +135,7 @@ int main() {
 	NN::network net({
 		NN::layer("elu", 64, 28*28),
 		NN::layer("elu", 32, 64),
-		NN::layer("tanh", 10, 32)
+		NN::layer("linear", 10, 32)
 	});
 	
 	NN::automatic_fit(net, X_train, y_train, "cross entropy", 20, 64, 0.001, hitmissratio, "saves/D3.txt");
