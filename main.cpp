@@ -43,18 +43,20 @@ void read_mnist(string filename, vector<NN::vector>& X, vector<NN::vector>& y, i
 			}
 		}
 		new_x.push_back(val);
-		X.push_back(NN::vector(new_x));
-		//vector<double> processed;
-		// here we use max pooling
-		/*for(int x = 0; x+1 < 28; x+=2) {
-			for(int y = 0; y+1 < 28; y+=2) {
-				double mx = 0;
-				for(int x1 = x; x1 <= x+1; x1++) for(int y1 = y; y1 <= y+1; y1++)
-					mx = max(mx, new_x[x+28*y]);
-				processed.push_back(mx);
+		vector<double> processed;
+		//here we use a standard sharpening kernel
+		auto getcoord = [new_x](int x, int y) -> double {
+			if(x < 0 || y < 0 || x >= 28 || y >= 28) return 0;
+			return new_x[x+28*y];
+		};
+		for(int y = 0; y < 28; y++) {
+			for(int x = 0; x < 28; x++) {
+				processed.push_back({
+					5*getcoord(x, y)-getcoord(x-1,y)-getcoord(x,y-1)-getcoord(x+1,y)-getcoord(x,y+1)
+				});
 			}
-		}*/
-		//X.push_back(NN::vector(processed));
+		}
+		X.push_back(NN::vector(processed));
 	}
 	cout << "closing file" << endl;
 	filereader.close();
@@ -102,7 +104,7 @@ void test(string filename) {
 			input = X_test[uniform_int_distribution<>(0, X_test.size()-1)(NN::rng)];
 		}
 		for(int x = 0; x < 28; x++) for(int y = 0; y < 28; y++) {
-			unsigned char scale = (unsigned char)(255*(1-input[x+28*y]));
+			unsigned char scale = (unsigned char)std::clamp((255*(1-input[x+28*y])), 0.0, 255.0);
 			DrawRectangle(10*x, 10*y, 10, 10, {scale, scale, scale, 255});
 		}
 		auto output = net(NN::vector(input)).back();
@@ -126,10 +128,10 @@ int main() {
 		return 0;
 	}
 	cout << "\t\treading test set\n";
-	read_mnist("data/mnist_test.csv", X_test, y_test, 100);
+	read_mnist("data/mnist_test.csv", X_test, y_test, -1);
 	assert(X_test.size() == y_test.size());
 	cout << "\t\treading train set" << endl;
-	read_mnist("data/mnist_train.csv", X_train, y_train, 1000);
+	read_mnist("data/mnist_train.csv", X_train, y_train, -1);
 	assert(X_train.size() == y_train.size());
 	cout << "\t\tmaking and training network" << endl;
 	NN::network net({
@@ -138,7 +140,7 @@ int main() {
 		NN::layer("linear", 10, 32)
 	});
 	
-	NN::automatic_fit(net, X_train, y_train, "cross entropy", 20, 64, 0.001, hitmissratio, "saves/D3.txt");
+	NN::automatic_fit(net, X_train, y_train, "mse", 20, 64, 0.001, hitmissratio, "saves/D3.txt");
 }
 
 #endif
