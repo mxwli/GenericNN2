@@ -396,11 +396,10 @@ namespace NN {
 			loss_function = [](const vector& A, const vector& B) -> double {
 				double tot = 0;
 			    for (std::size_t i = 0; i < ((stdvec)A).size(); i++) tot += std::exp(A[i]);
-
 			    double sum = 0;
 			    for (std::size_t i = 0; i < ((stdvec)A).size(); i++) {
 					if(B[i] != 0)
-						sum -= B[i] * std::log(std::clamp(std::exp(A[i])/tot, 1e-3, 1-1e-3));
+						sum -= B[i] * std::log(std::exp(A[i])/tot);
 				}
 			    return sum / ((stdvec)A).size();
 			};
@@ -408,9 +407,9 @@ namespace NN {
 				return [cur_output, target](int idx) -> double {
 					double tot = 0;
 			    	for (std::size_t i = 0; i < ((stdvec)cur_output).size(); i++) tot += std::exp(cur_output[i]);
-					double sum = target[idx]*(1-std::exp(cur_output[idx])/tot);
-			    	for(std::size_t i = 0; i < ((stdvec)cur_output).size(); i++) sum -= target[i]*std::exp(cur_output[idx])/tot*std::exp(cur_output[i])/tot;
-					return -sum;
+					double sum = -target[idx];
+					for (std::size_t i = 0; i < ((stdvec)cur_output).size(); i++) sum += target[i]*std::exp(cur_output[i])/tot;
+					return sum;
 				};
 			};
 		}

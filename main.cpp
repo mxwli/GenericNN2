@@ -49,14 +49,14 @@ void read_mnist(string filename, vector<NN::vector>& X, vector<NN::vector>& y, i
 			if(x < 0 || y < 0 || x >= 28 || y >= 28) return 0;
 			return new_x[x+28*y];
 		};
-		for(int y = 0; y < 28; y++) {
-			for(int x = 0; x < 28; x++) {
-				processed.push_back({
-					5*getcoord(x, y)-getcoord(x-1,y)-getcoord(x,y-1)-getcoord(x+1,y)-getcoord(x,y+1)
-				});
-			}
-		}
-		X.push_back(NN::vector(processed));
+		//for(int y = 0; y < 28; y++) {
+		//	for(int x = 0; x < 28; x++) {
+		//		processed.push_back({
+		//			5*getcoord(x, y)-getcoord(x-1,y)-getcoord(x,y-1)-getcoord(x+1,y)-getcoord(x,y+1)
+		//		});
+		//	}
+		//}
+		X.push_back(NN::vector(new_x));
 	}
 	cout << "closing file" << endl;
 	filereader.close();
@@ -135,12 +135,12 @@ int main() {
 	assert(X_train.size() == y_train.size());
 	cout << "\t\tmaking and training network" << endl;
 	NN::network net({
-		NN::layer("elu", 64, 28*28),
-		NN::layer("elu", 32, 64),
+		NN::layer("relu", 64, 28*28),
+		NN::layer("relu", 32, 64),
 		NN::layer("linear", 10, 32)
 	});
 	
-	NN::automatic_fit(net, X_train, y_train, "mse", 20, 64, 0.001, hitmissratio, "saves/D3.txt");
+	NN::automatic_fit(net, X_train, y_train, "cross entropy", 20, 64, 0.001, hitmissratio, "saves/D4.txt");
 }
 
 #endif
